@@ -6,20 +6,22 @@ const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
 const express = require('express');
 
-// Uptime üçün sadə server
+// Uptime üçün server
 const app = express();
 app.get('/', (req, res) => res.send('Bot aktivdir!'));
 app.listen(process.env.PORT || 3000);
 
 const MONGODB_URI = 'mongodb+srv://Ryhavean:raven123_@cluster0.6yxmbht.mongodb.net/?appName=Cluster0';
-const YOUR_NUMBER = '9955XXXXXXXX'; // Nömrəni bura yaz
+const YOUR_NUMBER = '9955XXXXXXXX'; 
 
 mongoose.connect(MONGODB_URI).then(() => {
     console.log('MongoDB-yə qoşuldu!');
-    
+
+    // DÜZƏLİŞ: MongoStore-a mongoose obyektini bu şəkildə ötürürük
     const store = new MongoStore({ mongoose: mongoose });
+    
     const client = new Client({
-        authStrategy: new MongoStore({ store: store }),
+        authStrategy: new MongoStore({ mongoose: mongoose }), // Burada birbaşa mongoose-i veririk
         puppeteer: {
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -53,4 +55,6 @@ mongoose.connect(MONGODB_URI).then(() => {
     });
 
     client.initialize();
+}).catch(err => {
+    console.error('MongoDB bağlantı xətası:', err);
 });
