@@ -1,9 +1,12 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const crypto = require('crypto');
+global.crypto = crypto;
+
+const { Client } = require('whatsapp-web.js');
 const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
 const express = require('express');
 
-// Render üçün yuxudan oyatmaq (Uptime üçün)
+// Uptime üçün sadə server
 const app = express();
 app.get('/', (req, res) => res.send('Bot aktivdir!'));
 app.listen(process.env.PORT || 3000);
