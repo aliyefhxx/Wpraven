@@ -11,7 +11,6 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Səhifəni göstərən hissə
 app.get('/', (req, res) => {
     res.send(`
         <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
@@ -22,7 +21,7 @@ app.get('/', (req, res) => {
             <script>
                 async function getCode() {
                     const phone = document.getElementById('phone').value;
-                    document.getElementById('result').innerText = 'Kod hazırlanır, zəhmət olmasa gözləyin...';
+                    document.getElementById('result').innerText = 'Bot başladılır... Zəhmət olmasa 15-20 saniyə gözləyin.';
                     const res = await fetch('/get-code', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -36,7 +35,6 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Kod alma sorğusu
 app.post('/get-code', async (req, res) => {
     const { phone } = req.body;
     try {
@@ -47,20 +45,30 @@ app.post('/get-code', async (req, res) => {
 
         const client = new Client({
             authStrategy: new RemoteAuth({ store: store, backupSyncIntervalMs: 300000 }),
-            puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            puppeteer: { 
+                headless: true, 
+                args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+            }
         });
 
-        client.initialize();
+        // ÇÖZÜM: requestPairingCode-u 'ready' hadisəsi daxilində və ya 
+        // client tam işə düşdükdən sonra çağırırıq
+        client.on('ready', async () => {
+            console.log('Client hazırdır.');
+        });
 
-        // Kod gələnə qədər gözlə
-        client.on('ready', () => console.log('Bot hazırdır'));
-        
+        await client.initialize();
+
+        // Brauzer nüvəsinin tam yüklənməsi üçün kiçik bir fasilə
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
         const code = await client.requestPairingCode(phone);
         res.json({ code: `SİZİN 8 RƏQƏMLİ KODUNUZ: ${code}` });
 
     } catch (err) {
-        res.json({ code: 'Xəta: ' + err.message });
+        console.error(err);
+        res.json({ code: 'Xəta baş verdi: ' + err.message });
     }
 });
 
-app.listen(port, () => console.log(`Server ${port} portunda işləyir.`));
+app.listen(port, () => console.log(`Server ${port} portunda aktivdir.`));
