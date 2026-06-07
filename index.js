@@ -11,60 +11,59 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// HTML Panel
 app.get('/', (req, res) => {
     res.send(`
-        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <div style="text-align:center; margin-top:50px;">
             <h1>WhatsApp Bot Panel</h1>
-            <input type="text" id="phone" placeholder="994501234567" style="padding:10px; width:250px;">
-            <button onclick="getCode()" style="padding:10px;">Kodu Al</button>
-            <h2 id="result" style="color:#008080; margin-top:30px;"></h2>
+            <input type="text" id="phone" placeholder="994501234567">
+            <button onclick="getCode()">Kodu Al</button>
+            <h2 id="res"></h2>
             <script>
                 async function getCode() {
                     const phone = document.getElementById('phone').value;
-                    document.getElementById('result').innerText = 'Bot başladılır, kod hazırlanır...';
-                    const res = await fetch('/get-code', {
+                    document.getElementById('res').innerText = '...';
+                    const r = await fetch('/code', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ phone })
                     });
-                    const data = await res.json();
-                    document.getElementById('result').innerText = data.code;
+                    const d = await r.json();
+                    document.getElementById('res').innerText = d.code;
                 }
             </script>
         </div>
     `);
 });
 
-app.post('/get-code', async (req, res) => {
-    const { phone } = req.body;
+// Kod alma hissəsi
+app.post('/code', async (req, res) => {
     try {
         const MONGODB_URI = 'mongodb+srv://Ryhavean:raven123_@cluster0.6yxmbht.mongodb.net/?appName=Cluster0';
-        
-        if (mongoose.connection.readyState === 0) await mongoose.connect(MONGODB_URI);
+        await mongoose.connect(MONGODB_URI);
         const store = new MongoStore({ mongoose: mongoose });
 
         const client = new Client({
             authStrategy: new RemoteAuth({ store: store, backupSyncIntervalMs: 300000 }),
-            puppeteer: { 
-                headless: true, 
-                args: ['--no-sandbox', '--disable-setuid-sandbox'] 
-            }
+            puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         });
 
-        // 1. İnitializasiya
+        // HƏR ŞEYİ QISA ETDİK:
         await client.initialize();
-
-        // 2. Timeout gözləmədən 5 saniyə sonra kodu sorğula (Brauzer açılışı üçün zaman)
-        await new Promise(resolve => setTimeout(resolve, 8000));
-
-        const code = await client.requestPairingCode(phone);
         
-        // Botu işi bitəndən sonra söndürmürük, amma cavabı veririk
-        res.json({ code: `KODUNUZ: ${code}` });
+        // Birbaşa kodu sorğula (gözləmə əlavə etdik)
+        setTimeout(async () => {
+            try {
+                const code = await client.requestPairingCode(req.body.phone);
+                res.json({ code: "KOD: " + code });
+            } catch (e) {
+                res.json({ code: "Xəta: " + e.message });
+            }
+        }, 5000); 
 
     } catch (err) {
-        res.json({ code: 'Xəta: ' + err.message + ' (Render RAM-ı az ola bilər, yenidən cəhd edin)' });
+        res.json({ code: "Bağlantı xətası: " + err.message });
     }
 });
 
-app.listen(port, () => console.log(`Server aktivdir.`));
+app.listen(port);
