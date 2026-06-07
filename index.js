@@ -11,10 +11,6 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Global dəyişənlər
-let client = null;
-let isInitializing = false;
-
 app.get('/', (req, res) => {
     res.send(`
         <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
@@ -25,7 +21,7 @@ app.get('/', (req, res) => {
             <script>
                 async function getCode() {
                     const phone = document.getElementById('phone').value;
-                    document.getElementById('result').innerText = 'Bot qoşulur... Bu proses 20-30 saniyə çəkə bilər.';
+                    document.getElementById('result').innerText = 'Bot başladılır, kod hazırlanır...';
                     const res = await fetch('/get-code', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -41,46 +37,34 @@ app.get('/', (req, res) => {
 
 app.post('/get-code', async (req, res) => {
     const { phone } = req.body;
-    
-    if (isInitializing) return res.json({ code: 'Bot artıq işə salınır, gözləyin...' });
-    isInitializing = true;
-
     try {
         const MONGODB_URI = 'mongodb+srv://Ryhavean:raven123_@cluster0.6yxmbht.mongodb.net/?appName=Cluster0';
-        if (mongoose.connection.readyState === 0) await mongoose.connect(MONGODB_URI);
         
+        if (mongoose.connection.readyState === 0) await mongoose.connect(MONGODB_URI);
         const store = new MongoStore({ mongoose: mongoose });
 
-        client = new Client({
+        const client = new Client({
             authStrategy: new RemoteAuth({ store: store, backupSyncIntervalMs: 300000 }),
-            puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            puppeteer: { 
+                headless: true, 
+                args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+            }
         });
 
-        client.initialize();
+        // 1. İnitializasiya
+        await client.initialize();
 
-        // 30 saniyə ərzində botun hazır olmasını gözləyirik
-        const code = await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Bot qoşulma vaxtı bitdi (Timeout)'));
-            }, 30000);
+        // 2. Timeout gözləmədən 5 saniyə sonra kodu sorğula (Brauzer açılışı üçün zaman)
+        await new Promise(resolve => setTimeout(resolve, 8000));
 
-            client.on('ready', async () => {
-                clearTimeout(timeout);
-                try {
-                    const pairingCode = await client.requestPairingCode(phone);
-                    resolve(pairingCode);
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
-
+        const code = await client.requestPairingCode(phone);
+        
+        // Botu işi bitəndən sonra söndürmürük, amma cavabı veririk
         res.json({ code: `KODUNUZ: ${code}` });
+
     } catch (err) {
-        res.json({ code: 'Xəta: ' + err.message });
-    } finally {
-        isInitializing = false;
+        res.json({ code: 'Xəta: ' + err.message + ' (Render RAM-ı az ola bilər, yenidən cəhd edin)' });
     }
 });
 
-app.listen(port, () => console.log(`Server ${port} portunda aktivdir.`));
+app.listen(port, () => console.log(`Server aktivdir.`));
