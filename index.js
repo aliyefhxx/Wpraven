@@ -1,28 +1,45 @@
-const { Client } = require('whatsapp-web.js');
-const { MongoStore } = require('wwebjs-mongodb');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
+const express = require('express');
 
-const MONGODB_URI = 'BURA_MONGO_CONNECTION_STRING_YAZ'; // Atlas-dan aldığın link
+// Render üçün yuxudan oyatmaq (Uptime üçün)
+const app = express();
+app.get('/', (req, res) => res.send('Bot aktivdir!'));
+app.listen(process.env.PORT || 3000);
+
+const MONGODB_URI = 'mongodb+srv://Ryhavean:raven123_@cluster0.6yxmbht.mongodb.net/?appName=Cluster0';
+const YOUR_NUMBER = '9955XXXXXXXX'; // Nömrəni bura yaz
 
 mongoose.connect(MONGODB_URI).then(() => {
+    console.log('MongoDB-yə qoşuldu!');
+    
     const store = new MongoStore({ mongoose: mongoose });
     const client = new Client({
         authStrategy: new MongoStore({ store: store }),
-        puppeteer: { args: ['--no-sandbox'] }
+        puppeteer: {
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        }
     });
 
     client.on('ready', () => console.log('Bot hazırdır!'));
 
     client.on('qr', async (qr) => {
-        const pairingCode = await client.requestPairingCode('9955XXXXXXXX'); // Nömrən
-        console.log('Kod: ' + pairingCode);
+        try {
+            const pairingCode = await client.requestPairingCode(YOUR_NUMBER);
+            console.log('--- 8 Rəqəmli Kodunuz: ' + pairingCode + ' ---');
+        } catch (err) {
+            console.error('Kod alınarkən xəta:', err);
+        }
     });
 
     client.on('message', async msg => {
         if (msg.body === '.alive') {
-            const sent = await msg.reply('...');
+            const sent = await msg.reply('Yüklənir...');
             await sent.edit('Ryhavean 🥷');
         }
+
         if (msg.body === '.km' && msg.hasQuotedMsg) {
             const quoted = await msg.getQuotedMessage();
             if (quoted.hasMedia) {
@@ -34,9 +51,3 @@ mongoose.connect(MONGODB_URI).then(() => {
 
     client.initialize();
 });
-
-// Uptime üçün sadə bir express server (Render yatmasın deyə)
-const express = require('express');
-const app = express();
-app.get('/', (req, res) => res.send('Bot aktivdir!'));
-app.listen(process.env.PORT || 3000);
