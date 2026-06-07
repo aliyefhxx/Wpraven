@@ -1,9 +1,9 @@
 {
   "name": "ryhavean-whatsapp-bot",
   "version": "1.0.0",
-  "main": "index.js",
   "dependencies": {
     "whatsapp-web.js": "latest",
-    "qrcode-terminal": "latest"
+    "wwebjs-mongodb": "latest",
+    "mongoose": "latest"
   }
 }
