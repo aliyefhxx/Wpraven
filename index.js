@@ -1,12 +1,11 @@
 const crypto = require('crypto');
 global.crypto = crypto;
 
-const { Client } = require('whatsapp-web.js');
+const { Client, RemoteAuth } = require('whatsapp-web.js');
 const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
 const express = require('express');
 
-// Uptime üçün server
 const app = express();
 app.get('/', (req, res) => res.send('Bot aktivdir!'));
 app.listen(process.env.PORT || 3000);
@@ -14,14 +13,17 @@ app.listen(process.env.PORT || 3000);
 const MONGODB_URI = 'mongodb+srv://Ryhavean:raven123_@cluster0.6yxmbht.mongodb.net/?appName=Cluster0';
 const YOUR_NUMBER = '9955XXXXXXXX'; 
 
-mongoose.connect(MONGODB_URI).then(() => {
+mongoose.connect(MONGODB_URI).then(async () => {
     console.log('MongoDB-yə qoşuldu!');
-
-    // DÜZƏLİŞ: MongoStore-a mongoose obyektini bu şəkildə ötürürük
+    
     const store = new MongoStore({ mongoose: mongoose });
     
+    // RemoteAuth istifadə edərək MongoDB-ni bağlayırıq
     const client = new Client({
-        authStrategy: new MongoStore({ mongoose: mongoose }), // Burada birbaşa mongoose-i veririk
+        authStrategy: new RemoteAuth({
+            store: store,
+            backupSyncIntervalMs: 300000
+        }),
         puppeteer: {
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -33,7 +35,7 @@ mongoose.connect(MONGODB_URI).then(() => {
     client.on('qr', async (qr) => {
         try {
             const pairingCode = await client.requestPairingCode(YOUR_NUMBER);
-            console.log('--- 8 Rəqəmli Kodunuz: ' + pairingCode + ' ---');
+            console.log('--- 8 RƏQƏMLİ KODUNUZ: ' + pairingCode + ' ---');
         } catch (err) {
             console.error('Kod alınarkən xəta:', err);
         }
@@ -44,7 +46,6 @@ mongoose.connect(MONGODB_URI).then(() => {
             const sent = await msg.reply('Yüklənir...');
             await sent.edit('Ryhavean 🥷');
         }
-
         if (msg.body === '.km' && msg.hasQuotedMsg) {
             const quoted = await msg.getQuotedMessage();
             if (quoted.hasMedia) {
@@ -55,6 +56,4 @@ mongoose.connect(MONGODB_URI).then(() => {
     });
 
     client.initialize();
-}).catch(err => {
-    console.error('MongoDB bağlantı xətası:', err);
 });
